@@ -406,3 +406,183 @@ class TestBatchNormLayerClass(unittest.TestCase):
         y = bnl.activate(x)
 
         self.assertTrue(np.allclose(y, y_true))
+
+
+class TestAverageLayerClass(unittest.TestCase):
+
+    IN = np.array([[[0.32400414, 0.31483042],
+                    [0.38269293, 0.04822304],
+                    [0.03791266, 0.34776369]],
+                   [[0.87113619, 0.62172854],
+                    [0.87353969, 0.92837042],
+                    [0.70359915, 0.49917081]],
+                   [[0.42643583, 0.74653631],
+                    [0.08519834, 0.35423595],
+                    [0.34863797, 0.44895086]]])
+
+    OUT_AVG = 0.46460927444444444
+    OUT_02 = np.array([0.55077857, 0.44537673, 0.39767252])
+    OUT_02_KD = np.array([[[0.55077857], [0.44537673], [0.39767252]]])
+
+    def test_average_layer(self):
+        al = layers.AverageLayer()
+        out = al(TestAverageLayerClass.IN)
+        self.assertAlmostEqual(out, TestAverageLayerClass.OUT_AVG)
+
+        al = layers.AverageLayer(axis=(0, 2))
+        out = al(TestAverageLayerClass.IN)
+        self.assertEqual(out.shape, (3,))
+        self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02))
+
+        al = layers.AverageLayer(axis=(0, 2), keepdims=True)
+        out = al(TestAverageLayerClass.IN)
+        self.assertEqual(out.shape, (1, 3, 1))
+        self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02_KD))
+
+        al = layers.AverageLayer(axis=(0, 2), dtype=np.float32)
+        out = al(TestAverageLayerClass.IN)
+        self.assertEqual(out.dtype, np.float32)
+
+
+class TestReshapeLayerClass(unittest.TestCase):
+
+    IN = np.random.random((2, 3, 4))
+
+    def test_reshape_layer(self):
+        rl = layers.ReshapeLayer(newshape=(3, 4, 2))
+        self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
+        rl = layers.ReshapeLayer(newshape=(3, -1, 2))
+        self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
+        rl = layers.ReshapeLayer(newshape=(-1,))
+        self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (24,))
+
+        with self.assertRaises(ValueError):
+            rl = layers.ReshapeLayer(newshape=(3, 2, 2))
+            rl(TestReshapeLayerClass.IN)
+
+
+class TestTransposeLayerClass(unittest.TestCase):
+
+    IN = np.random.random((2, 3, 4, 5))
+
+    def test_transpose_layer(self):
+        tl = layers.TransposeLayer()
+        self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (5, 4, 3, 2))
+
+        tl = layers.TransposeLayer(axes=(2, 0, 1, 3))
+        self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (4, 2, 3, 5))
+
+        with self.assertRaises(ValueError):
+            tl = layers.TransposeLayer(axes=(0, 1, 3))
+            tl(TestTransposeLayerClass.IN)
+
+        with self.assertRaises(ValueError):
+            tl = layers.TransposeLayer(axes=(0, 1, 2, 3, 4))
+            tl(TestTransposeLayerClass.IN)
+
+        with self.assertRaises(ValueError):
+            tl = layers.TransposeLayer(axes=(0, 1, 1, 2))
+            tl(TestTransposeLayerClass.IN)
+
+
+class TestPadLayerClass(unittest.TestCase):
+
+    def test_constant_padding(self):
+        pl = layers.PadLayer(width=2, axes=(0, 1), value=10.)
+        data = np.arange(40).reshape(5, 4, 2).astype(np.float)
+        out = pl(data)
+
+        self.assertEqual(out.shape, (9, 8, 2))
+        self.assertTrue(np.allclose(out[2:-2, 2:-2, :], data))
+        self.assertTrue(np.allclose(out[:2, :, :], 10.))
+        self.assertTrue(np.allclose(out[-2:, :, :], 10.))
+        self.assertTrue(np.allclose(out[:, :2, :], 10.))
+        self.assertTrue(np.allclose(out[:, -2:, :], 10.))
+
+        pl = layers.PadLayer(width=3, axes=(2,), value=2.2)
+        out = pl(data)
+
+        self.assertEqual(out.shape, (5, 4, 8))
+        self.assertTrue(np.allclose(out[:, :, 3:-3], data))
+        self.assertTrue(np.allclose(out[:, :, :3], 2.2))
+        self.assertTrue(np.allclose(out[:, :, -3:], 2.2))
+
+
+class ConvolutionalLayerClassTest(unittest.TestCase):
+
+    W1 = np.array([[[[0.69557322]],
+                    [[0.45649655]],
+                    [[0.58179561]]],
+                   [[[0.20438251]],
+                    [[0.17404747]],
+                    [[0.41624290]]]])
+
+    W3 = np.array([[[[0.57353216, 0.72422232, 0.15716315],
+                     [0.82000373, 0.26902348, 0.69203708],
+                     [0.45564084, 0.89265194, 0.98080186]],
+                    [[0.44920649, 0.52442715, 0.33103038],
+                     [0.24536095, 0.49307102, 0.28850389],
+                     [0.38324254, 0.46965330, 0.76865911]],
+                    [[0.44225901, 0.34989312, 0.92381997],
+                     [0.32123710, 0.04856574, 0.87387125],
+                     [0.70175767, 0.38149251, 0.40178089]]],
+                   [[[0.28197446, 0.35315104, 0.53862099],
+                     [0.01224023, 0.94672135, 0.87194315],
+                     [0.69193064, 0.27611521, 0.51076897]],
+                    [[0.22228372, 0.58605351, 0.17730248],
+                     [0.10949298, 0.43124835, 0.71336330],
+                     [0.57694486, 0.44623928, 0.11774881]],
+                    [[0.76850363, 0.46740177, 0.76900027],
+                     [0.61551742, 0.62841514, 0.05235070],
+                     [0.01321052, 0.93591818, 0.61256317]]]])
+
+    B = np.array([0.27614033, 0.87995416, 0.23540803])
+
+    O1 = np.array([[[0.97171354, 1.33645070, 0.81720366],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.48052284, 1.05400163, 0.65165093]],
+                   [[0.27614033, 0.87995416, 0.23540803],
+                    [0.97171354, 1.33645070, 0.81720366],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.48052284, 1.05400163, 0.65165093],
+                    [0.27614033, 0.87995416, 0.23540803]],
+                   [[0.27614033, 0.87995416, 0.23540803],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [1.17609602, 1.51049817, 1.23344656],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.27614033, 0.87995416, 0.23540803]],
+                   [[0.27614033, 0.87995416, 0.23540803],
+                    [0.48052284, 1.05400163, 0.65165093],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.97171354, 1.33645070, 0.81720366],
+                    [0.27614033, 0.87995416, 0.23540803]],
+                   [[0.48052284, 1.05400163, 0.65165093],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.27614033, 0.87995416, 0.23540803],
+                    [0.97171354, 1.33645070, 0.81720366]]])
+
+    O3 = np.array([[[2.38147223, 2.81317455, 1.89651736],
+                    [2.05779099, 2.38843173, 2.54209157],
+                    [2.61057651, 2.39648026, 2.56985398]],
+                   [[2.35418737, 2.29051489, 2.02105685],
+                    [4.27677071, 3.77638656, 2.53863951],
+                    [2.84045803, 2.85248774, 2.44744130]],
+                   [[2.90905416, 2.44869238, 2.34779163],
+                    [3.13685429, 2.75457102, 1.92640647],
+                    [2.61026680, 2.70863968, 1.74057683]]])
+
+    def setUp(self):
+        self.layer1x1 = ConvolutionalLayer(ConvolutionalLayerClassTest.W1,
+                                           ConvolutionalLayerClassTest.B)
+        self.layer3x3 = ConvolutionalLayer(ConvolutionalLayerClassTest.W3,
+                                           ConvolutionalLayerClassTest.B)
+        self.data = np.stack([np.eye(5), np.eye(5)[:, ::-1]], axis=-1)
+
+    def test_activate(self):
+        out1 = self.layer1x1.activate(self.data)
+        self.assertTrue(np.allclose(out1, ConvolutionalLayerClassTest.O1))
+        out3 = self.layer3x3.activate(self.data)
+        self.assertTrue(np.allclose(out3, ConvolutionalLayerClassTest.O3))

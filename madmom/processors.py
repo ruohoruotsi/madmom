@@ -24,6 +24,8 @@ from collections import MutableSequence
 
 import numpy as np
 
+from .utils import integer_types
+
 
 class Processor(object):
     """
@@ -52,14 +54,9 @@ class Processor(object):
 
         """
         import pickle
-        # close the open file if needed and use its name
-        try:
-            infile.close()
-            infile = infile.name
-        except AttributeError:
-            pass
+        from .io import open_file
         # instantiate a new Processor and return it
-        with open(infile, 'rb') as f:
+        with open_file(infile, 'rb') as f:
             # Python 2 and 3 behave differently
             try:
                 # Python 3
@@ -90,15 +87,11 @@ class Processor(object):
 
         """
         import pickle
-        # close the open file if needed and use its name
-        try:
-            outfile.close()
-            outfile = outfile.name
-        except AttributeError:
-            pass
+        from .io import open_file
         # dump the Processor to the given file
         # Note: for Python 2 / 3 compatibility reason use protocol 2
-        pickle.dump(self, open(outfile, 'wb'), protocol=2)
+        with open_file(outfile, 'wb') as f:
+            pickle.dump(self, f, protocol=2)
 
     def process(self, data, **kwargs):
         """
@@ -288,11 +281,11 @@ def _process(process_tuple):
     This must be a top-level function to be pickle-able.
 
     """
+    # do not process the data, if the first item (i.e. Processor) is None
     if process_tuple[0] is None:
-        # do not process the data, if the first item (i.e. Processor) is None
         return process_tuple[1]
+    # call the Processor with data and kwargs
     elif isinstance(process_tuple[0], Processor):
-        # call the Processor with data and kwargs
         return process_tuple[0](*process_tuple[1:-1], **process_tuple[-1])
     # just call whatever we got here (e.g. a function) without kwargs
     return process_tuple[0](*process_tuple[1:-1])
@@ -528,7 +521,7 @@ class IOProcessor(OutputProcessor):
         else:
             self.in_processor = in_processor
         # wrap the output processor in an IOProcessor if needed
-        if isinstance(out_processor, list):
+        if isinstance(out_processor, (list, tuple)):
             if len(out_processor) >= 2:
                 # use the last processor as output and all others as input
                 self.out_processor = IOProcessor(out_processor[:-1],
@@ -756,7 +749,7 @@ class BufferProcessor(Processor):
         if buffer_size is None and init is not None:
             buffer_size = init.shape
         # if buffer_size is int, make a tuple
-        elif isinstance(buffer_size, (int, np.integer)):
+        elif isinstance(buffer_size, integer_types):
             buffer_size = (buffer_size, )
         # TODO: use np.pad for fancy initialisation (can be done in process())
         # init buffer if needed
@@ -766,6 +759,11 @@ class BufferProcessor(Processor):
         self.buffer_size = buffer_size
         self.init = init
         self.data = init
+
+    @property
+    def buffer_length(self):
+        """Length of the buffer (time steps)."""
+        return self.buffer_size[0]
 
     def reset(self, init=None):
         """
@@ -793,6 +791,12 @@ class BufferProcessor(Processor):
         numpy array or subclass thereof
             Data with buffered context.
 
+        Notes
+        -----
+        If the length of data is the same as the buffer's length, the data of
+        the buffer is completely overwritten by new data. If it exceeds the
+        length, only the latest 'buffer_length' items of data are used.
+
         """
         # expected minimum number of dimensions
         ndmin = len(self.buffer_size)
@@ -801,9 +805,14 @@ class BufferProcessor(Processor):
             data = np.array(data, copy=False, subok=True, ndmin=ndmin)
         # length of the data
         data_length = len(data)
-        # remove `data_length` from buffer at the beginning and append new data
-        self.data = np.roll(self.data, -data_length, axis=0)
-        self.data[-data_length:] = data
+        # if length of data exceeds buffer length simply replace buffer data
+        if data_length >= self.buffer_length:
+            self.data = data[-self.buffer_length:]
+        else:
+            # roll buffer by `data_length`, i.e. move data to the 'left'
+            self.data = np.roll(self.data, -data_length, axis=0)
+            # overwrite 'right' part with new data
+            self.data[-data_length:] = data
         # return the complete buffer
         return self.data
 

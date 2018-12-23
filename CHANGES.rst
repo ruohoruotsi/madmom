@@ -1,8 +1,26 @@
 Release Notes
 =============
 
-Version 0.16.dev0
+Version 0.17.dev0
 -----------------
+
+New features:
+
+* Volume changes according to `ReplayGain` tags can be applied (#400)
+
+Bug fixes:
+
+* `BufferProcessor` can handle data longer than buffer length (#398)
+
+Version 0.16.1 (release date: 2017-11-14)
+-----------------------------------------
+
+This is a maintenance release.
+
+* Include .pyx files in source distribution
+
+Version 0.16 (release date: 2017-11-13)
+---------------------------------------
 
 New features:
 
@@ -11,6 +29,7 @@ New features:
 * Bar tracking functionality (#316)
 * Added `quantize_notes` function (#327)
 * Added global key evaluation (#336)
+* Added key recognition feature and program (#345, #381)
 
 Bug fixes:
 
@@ -26,11 +45,19 @@ API relevant changes:
 * `BufferProcessor` uses `data` instead of `buffer` for data storage (#292)
 * `DBNBeatTrackingProcessor` expects 1D inputs (#299)
 * Moved downbeat and pattern tracking to `features.downbeats` (#316)
+* Write/load functions moved to `io` module (#346)
+* Write functions do not return any data (#346)
+* Evaluation classes expect annotations/detections, cannot handle files (#346)
+* New MIDI module (io.midi) replacing (utils.midi) based on mido (#46)
 
 Other changes:
 
 * Viterbi decoding of `HMM` raises a warning if no valid path is found (#279)
 * Add option to include Nyquist frequency in `STFT` (#280)
+* Use `pyfftw` to compute FFT (#363)
+* Python 3.7 support (#374)
+* Use pytest instead of nose to run tests (#385)
+* Removed obsolete code (#385)
 
 
 Version 0.15.1 (release date: 2017-07-07)

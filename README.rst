@@ -60,14 +60,19 @@ Prerequisites
 -------------
 
 To install the ``madmom`` package, you must have either Python 2.7 or Python
-3.3 or newer and the following packages installed:
+3.5 or newer and the following packages installed:
 
 - `numpy <http://www.numpy.org>`_
 - `scipy <http://www.scipy.org>`_
 - `cython <http://www.cython.org>`_
-- `nose <https://github.com/nose-devs/nose>`_ (to run the tests)
-- `pyaudio <http://people.csail.mit.edu/hubert/pyaudio/>`_ (to process live
-  audio input)
+- `mido <https://github.com/olemb/mido>`_
+
+In order to test your installation, process live audio input, or have improved
+FFT performance, additionally install these packages:
+
+- `pytest <https://www.pytest.org/>`_
+- `pyaudio <http://people.csail.mit.edu/hubert/pyaudio/>`_
+- `pyfftw <https://github.com/pyFFTW/pyFFTW/>`_
 
 If you need support for audio files other than ``.wav`` with a sample rate of
 44.1kHz and 16 bit depth, you need ``ffmpeg`` (``avconv`` on Ubuntu Linux has
@@ -130,7 +135,7 @@ Then you can simply install the package in development mode::
 
 To run the included tests::
 
-    python setup.py test
+    python setup.py pytest
 
 Upgrade of existing installations
 ---------------------------------
@@ -326,7 +331,7 @@ References
 .. [11] Filip Korzeniowski, Sebastian Böck and Gerhard Widmer,
     *Probabilistic Extraction of Beat Positions from a Beat Activation
     Function*,
-    In Proceedings of the 15th International Society for Music Information
+    Proceedings of the 15th International Society for Music Information
     Retrieval Conference (ISMIR), 2014.
 .. [12] Sebastian Böck, Florian Krebs and Gerhard Widmer,
     *Accurate Tempo Estimation based on Recurrent Neural Networks and
@@ -353,7 +358,10 @@ References
     *A Fully Convolutional Deep Auditory Model for Musical Chord Recognition*,
     Proceedings of IEEE International Workshop on Machine Learning for Signal
     Processing (MLSP), 2016.
-
+.. [18] Filip Korzeniowski and Gerhard Widmer,
+    *Genre-Agnostic Key Classification with Convolutional Neural Networks*,
+    Proceedings of the 19th International Society for Music Information
+    Retrieval Conference (ISMIR), 2018.
 
 Acknowledgements
 ================

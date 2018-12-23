@@ -1,12 +1,24 @@
+# encoding: utf-8
+# pylint: skip-file
+"""
+This file contains tests for the madmom.evaluation.key module.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
 import unittest
+from os.path import join
+
 from madmom.evaluation.key import *
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
-from os.path import join
 
 
 class TestKeyLabelToClassFunction(unittest.TestCase):
 
     def test_illegal_label(self):
+        with self.assertRaises(ValueError):
+            key_label_to_class('Z major')
         with self.assertRaises(ValueError):
             key_label_to_class('D mixolydian')
         with self.assertRaises(ValueError):
@@ -47,26 +59,6 @@ class TestKeyLabelToClassFunction(unittest.TestCase):
                          key_label_to_class('F# major'))
 
 
-class TestLoadKeyFunction(unittest.TestCase):
-
-    def test_load_key_from_file(self):
-        key = load_key(join(ANNOTATIONS_PATH, 'dummy.key'))
-        self.assertEquals(key, 18)
-        key = load_key(join(DETECTIONS_PATH, 'dummy.key.txt'))
-        self.assertEquals(key, 9)
-
-    def test_load_key_from_id(self):
-        key = load_key(18)
-        self.assertEquals(key, 18)
-        key = load_key(9)
-        self.assertEquals(key, 9)
-
-        with self.assertRaises(ValueError):
-            load_key(-1)
-        with self.assertRaises(ValueError):
-            load_key(25)
-
-
 class TestErrorTypeFunction(unittest.TestCase):
 
     def _compare_scores(self, correct, fifth_strict, fifth_lax, relative,
@@ -75,30 +67,30 @@ class TestErrorTypeFunction(unittest.TestCase):
             score, cat = error_type(det_key, correct)
             score_st, cat_st = error_type(det_key, correct, strict_fifth=True)
             if det_key == correct:
-                self.assertEquals(cat, 'correct')
-                self.assertEquals(score, 1.0)
-                self.assertEquals(cat_st, cat)
-                self.assertEquals(score_st, score)
+                self.assertEqual(cat, 'correct')
+                self.assertEqual(score, 1.0)
+                self.assertEqual(cat_st, cat)
+                self.assertEqual(score_st, score)
             if det_key == fifth_strict:
-                self.assertEquals(cat, 'fifth')
-                self.assertEquals(score, 0.5)
-                self.assertEquals(cat_st, cat)
-                self.assertEquals(score_st, score)
+                self.assertEqual(cat, 'fifth')
+                self.assertEqual(score, 0.5)
+                self.assertEqual(cat_st, cat)
+                self.assertEqual(score_st, score)
             if det_key == fifth_lax:
-                self.assertEquals(cat, 'fifth')
-                self.assertEquals(score, 0.5)
-                self.assertEquals(cat_st, 'other')
-                self.assertEquals(score_st, 0.0)
+                self.assertEqual(cat, 'fifth')
+                self.assertEqual(score, 0.5)
+                self.assertEqual(cat_st, 'other')
+                self.assertEqual(score_st, 0.0)
             if det_key == relative:
-                self.assertEquals(cat, 'relative')
-                self.assertEquals(score, 0.3)
-                self.assertEquals(cat_st, cat)
-                self.assertEquals(score_st, score)
+                self.assertEqual(cat, 'relative')
+                self.assertEqual(score, 0.3)
+                self.assertEqual(cat_st, cat)
+                self.assertEqual(score_st, score)
             if det_key == parallel:
-                self.assertEquals(cat, 'parallel')
-                self.assertEquals(score, 0.2)
-                self.assertEquals(cat_st, cat)
-                self.assertEquals(score_st, score)
+                self.assertEqual(cat, 'parallel')
+                self.assertEqual(score, 0.2)
+                self.assertEqual(cat_st, cat)
+                self.assertEqual(score_st, score)
 
     def test_values(self):
         self._compare_scores(
@@ -138,8 +130,8 @@ class TestKeyEvaluationClass(unittest.TestCase):
 
     def setUp(self):
         self.eval = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.key'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='TestEval'
         )
 
@@ -158,14 +150,14 @@ class TestKeyMeanEvaluation(unittest.TestCase):
     def setUp(self):
         # this one should have a score of 1
         self.eval1 = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
             name='eval1'
         )
         # this one should have a score of 0.3
         self.eval2 = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.key'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval2'
         )
 

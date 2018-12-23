@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy.ndimage import uniform_filter
-from scipy.ndimage.filters import maximum_filter
+from scipy.ndimage.filters import maximum_filter, minimum_filter
 
 from ..audio.signal import smooth as smooth_signal
 from ..processors import (BufferProcessor, OnlineProcessor, ParallelProcessor,
@@ -279,7 +279,6 @@ def complex_flux(spectrogram, diff_frames=None, diff_max_bins=3,
 
     """
     # create a mask based on the local group delay information
-    from scipy.ndimage import maximum_filter, minimum_filter
     # take only absolute values of the local group delay and normalize them
     lgd = np.abs(spectrogram.stft.phase().lgd()) / np.pi
     # maximum filter along the temporal axis
@@ -752,7 +751,7 @@ class RNNOnsetProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.onsets.RNNOnsetProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav') # doctest: +ELLIPSIS
-    array([ 0.08313,  0.0024 ,  ...,  0.00205,  0.00527], dtype=float32)
+    array([0.08313, 0.0024 , ... 0.00527], dtype=float32)
 
     """
 
@@ -833,7 +832,7 @@ class CNNOnsetProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.onsets.CNNOnsetProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
-    array([ 0.05369,  0.04205,  ...,  0.00024,  0.00014], dtype=float32)
+    array([0.05369, 0.04205, ... 0.00014], dtype=float32)
 
     """
 
@@ -1081,7 +1080,7 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
 
     >>> act = RNNOnsetProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS
-    array([ 0.09,  0.29,  0.45,  ...,  2.34,  2.49,  2.67])
+    array([0.09, 0.29, 0.45, ..., 2.34, 2.49, 2.67])
 
     """
     FPS = 100
@@ -1169,6 +1168,8 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
         ----------
         activations : numpy array
             Onset activation function.
+        reset : bool, optional
+            Reset the processor to its initial state before processing.
 
         Returns
         -------

@@ -182,6 +182,7 @@ class Activations(np.ndarray):
             header = "FPS:%f" % self.fps
             np.savetxt(outfile, np.atleast_2d(self), fmt=fmt, delimiter=sep,
                        header=header)
+        outfile.close()
 
 
 class ActivationsProcessor(Processor):
@@ -275,7 +276,7 @@ class ActivationsProcessor(Processor):
 
 
 # finally import the submodules
-from . import beats, chords, downbeats, notes, onsets, tempo
+from . import beats, chords, downbeats, key, notes, onsets, tempo
 
 # import often used classes
 from .beats import (BeatDetectionProcessor, BeatTrackingProcessor,
@@ -284,8 +285,11 @@ from .beats import (BeatDetectionProcessor, BeatTrackingProcessor,
 from .chords import (CNNChordFeatureProcessor, CRFChordRecognitionProcessor,
                      DeepChromaChordRecognitionProcessor)
 from .downbeats import (RNNDownBeatProcessor, DBNDownBeatTrackingProcessor,
-                        PatternTrackingProcessor)
-from .notes import RNNPianoNoteProcessor
-from .onsets import (CNNOnsetProcessor, PeakPickingProcessor,
-                     RNNOnsetProcessor, SpectralOnsetProcessor)
+                        PatternTrackingProcessor, RNNBarProcessor,
+                        DBNBarTrackingProcessor)
+from .key import CNNKeyRecognitionProcessor
+from .notes import RNNPianoNoteProcessor, NotePeakPickingProcessor
+from .onsets import (CNNOnsetProcessor, OnsetPeakPickingProcessor,
+                     PeakPickingProcessor, RNNOnsetProcessor,
+                     SpectralOnsetProcessor)
 from .tempo import TempoEstimationProcessor

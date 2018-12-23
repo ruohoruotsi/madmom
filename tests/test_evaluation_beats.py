@@ -7,15 +7,13 @@ This file contains tests for the madmom.evaluation.beats module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
-from os.path import join as pj
+import unittest
 
-from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from madmom.evaluation.beats import *
-# noinspection PyProtectedMember
-from madmom.evaluation.beats import (_histogram_bins, _error_histogram,
-                                     _information_gain, _entropy)
+from madmom.evaluation.beats import (_entropy, _error_histogram,
+                                     _histogram_bins, _information_gain, )
+from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 ANNOTATIONS = np.asarray([1., 2, 3, 4, 5, 6, 7, 8, 9, 10])
 OFFBEAT_ANNOTATIONS = np.asarray([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5])
@@ -31,22 +29,6 @@ SAMPLE_BEAT_ANNOTATIONS = np.asarray([0.0913, 0.7997, 1.4806, 2.1478])
 
 
 # test functions
-class TestLoadBeatsFunction(unittest.TestCase):
-
-    def test_load_beats_from_file(self):
-        beats = load_beats(pj(ANNOTATIONS_PATH, 'sample.beats'))
-        self.assertTrue(np.allclose(beats, SAMPLE_BEAT_ANNOTATIONS))
-
-    def test_load_downbeats_from_file(self):
-        downbeats = load_beats(pj(ANNOTATIONS_PATH, 'sample.beats'),
-                               downbeats=True)
-        self.assertTrue(np.allclose(downbeats, 0.0913))
-
-    def test_load_None(self):
-        beats = load_beats(None)
-        self.assertTrue(beats.size == 0)
-
-
 class TestVariationsFunction(unittest.TestCase):
 
     def test_types(self):
@@ -170,10 +152,8 @@ class TestFindClosestIntervalFunction(unittest.TestCase):
         self.assertTrue(np.allclose(intervals, []))
         # test detections w.r.t. annotations
         intervals = find_closest_intervals(DETECTIONS, ANNOTATIONS)
-        correct = np.asarray([1., 1, 1, 1, 1, 1, 1, 1, 1, 1])
+        correct = [1., 1, 1, 1, 1, 1, 1, 1, 1, 1]
         self.assertTrue(np.allclose(intervals, correct))
-        # intervals = find_closest_intervals(DETECTIONS, EVENTS)
-        # correct = np.asarray([1., 1, 1, 1, 1, 1, 1, 1, 1, 1])
         # test annotations w.r.t. detections
         intervals = find_closest_intervals(ANNOTATIONS, DETECTIONS)
         correct = [0.99, 0.99, 1.05, 1.05, 2, 2, 1, 1, 1.1, 0.9]
@@ -286,8 +266,6 @@ class TestPscoreFunction(unittest.TestCase):
         # detections / annotations must be correct type
         score = pscore([], [], 0.2)
         self.assertIsInstance(score, float)
-        score = pscore({}, {}, 0.2)
-        self.assertIsInstance(score, float)
         # tolerance must be convertible to float
         score = pscore(DETECTIONS, ANNOTATIONS, int(1.2))
         self.assertIsInstance(score, float)
@@ -334,8 +312,6 @@ class TestCemgilFunction(unittest.TestCase):
         self.assertIsInstance(score, float)
         # detections / annotations must be correct type
         score = cemgil([], [], 0.04)
-        self.assertIsInstance(score, float)
-        score = cemgil({}, {}, 0.04)
         self.assertIsInstance(score, float)
         # sigma must be correct type
         score = cemgil(DETECTIONS, ANNOTATIONS, int(1))
@@ -384,8 +360,6 @@ class TestGotoFunction(unittest.TestCase):
         self.assertIsInstance(score, float)
         # detections / annotations must be correct type
         score = goto([], [], 0.175, 0.2, 0.2)
-        self.assertIsInstance(score, float)
-        score = goto({}, {}, 0.175, 0.2, 0.2)
         self.assertIsInstance(score, float)
         # parameters must be correct type
         score = goto(DETECTIONS, ANNOTATIONS, int(1.175), 0.2, 0.2)
@@ -452,9 +426,6 @@ class TestCmlFunction(unittest.TestCase):
         cmlc, cmlt = cml([], [], 0.175, 0.175)
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
-        cmlc, cmlt = cml({}, {}, 0.175, 0.175)
-        self.assertIsInstance(cmlc, float)
-        self.assertIsInstance(cmlt, float)
         # tolerances must be correct type
         cmlc, cmlt = cml(DETECTIONS, ANNOTATIONS, int(1), int(1))
         self.assertIsInstance(cmlc, float)
@@ -512,11 +483,6 @@ class TestContinuityFunction(unittest.TestCase):
         self.assertIsInstance(amlt, float)
         # detections / annotations must be correct type
         cmlc, cmlt, amlc, amlt = continuity([], [], 0.175, 0.175)
-        self.assertIsInstance(cmlc, float)
-        self.assertIsInstance(cmlt, float)
-        self.assertIsInstance(amlc, float)
-        self.assertIsInstance(amlt, float)
-        cmlc, cmlt, amlc, amlt = continuity({}, {}, 0.175, 0.175)
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
         self.assertIsInstance(amlc, float)
@@ -796,9 +762,6 @@ class TestInformationGainFunction(unittest.TestCase):
         ig, histogram = information_gain([], [], 40)
         self.assertIsInstance(ig, float)
         self.assertIsInstance(histogram, np.ndarray)
-        ig, histogram = information_gain({}, {}, 40)
-        self.assertIsInstance(ig, float)
-        self.assertIsInstance(histogram, np.ndarray)
         # tolerances must be correct type
         ig, histogram = information_gain(DETECTIONS, ANNOTATIONS, 40)
         self.assertIsInstance(ig, float)
@@ -908,23 +871,23 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         # conversion from 2D arrays
-        e = BeatEvaluation(np.array([[1, 1.1], [2, 1.2]]),
-                           np.array([[1, 1.1], [2, 1.2]]))
+        e = BeatEvaluation(np.array([[1, 1], [2, 2]]),
+                           np.array([[1, 1], [2, 2]]))
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         # conversion from list of lists
-        e = BeatEvaluation([[1, 1.1], [2, 1.2]], [[1, 1.1], [2, 1.2]])
+        e = BeatEvaluation([[1, 1], [2, 2]], [[1, 1], [2, 2]])
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
-        # others should fail
-        self.assertRaises(ValueError, BeatEvaluation, float(0), float(0))
-        self.assertRaises(ValueError, BeatEvaluation, int(0), int(0))
-        # TODO: why does dict work?
-        # self.assertRaises(ValueError, BeatEvaluation, {}, {})
+
+    def test_errors(self):
+        # conversion from list of lists
+        with self.assertRaises(BeatIntervalError):
+            e = BeatEvaluation(0, 1.)
 
     def test_results_empty(self):
         e = BeatEvaluation([], [])
@@ -980,6 +943,16 @@ class TestBeatEvaluationClass(unittest.TestCase):
         error_histogram_[20] = 7
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
+
+    def test_downbeat_results(self):
+        det = [[0.9, 1], [2, 2], [3, 3], [4, 4], [5, 1]]
+        ann = [[1, 1], [2, 2], [3, 3], [4, 4], [5, 1]]
+        e = BeatEvaluation(det, ann)
+        self.assertTrue(np.allclose(e.tp, [2, 3, 4, 5]))
+        e = BeatEvaluation(det, ann, downbeats=True)
+        self.assertTrue(np.allclose(e.tp, [5]))
+        e = BeatEvaluation(det, ann, downbeats=True, fmeasure_window=0.1)
+        self.assertTrue(np.allclose(e.tp, [0.9, 5]))
 
     def test_tostring(self):
         print(BeatEvaluation([], []))

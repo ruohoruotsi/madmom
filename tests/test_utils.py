@@ -10,8 +10,9 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
+from madmom.io import load_events
 from madmom.utils import *
-from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
+from . import (ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH, DATA_PATH,
                DETECTIONS_PATH)
 from .test_features_notes import NOTES
 
@@ -23,7 +24,9 @@ AUDIO_FILES = [pj(AUDIO_PATH, 'sample.wav'),
                pj(AUDIO_PATH, 'sample2.wav'),
                pj(AUDIO_PATH, 'sample_22050.wav'),
                pj(AUDIO_PATH, 'stereo_chirp.wav'),
+               pj(AUDIO_PATH, 'stereo_chirp_rg.flac'),
                pj(AUDIO_PATH, 'stereo_sample.flac'),
+               pj(AUDIO_PATH, 'stereo_sample_rg.flac'),
                pj(AUDIO_PATH, 'stereo_sample.wav')]
 
 ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
@@ -35,6 +38,8 @@ ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.deep_chroma.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.complex_flux.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.gmm_pattern_tracker.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.key_cnn.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample2.key_cnn.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.log_filt_spec_flux.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.onsets_cnn.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.onsets_brnn.npz'),
@@ -56,6 +61,7 @@ ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'dummy.chords'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.notes'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.notes.mirex'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.sv'),
+                    pj(ANNOTATIONS_PATH, 'stereo_sample_sustained.mid'),
                     pj(ANNOTATIONS_PATH, 'multitrack.mid'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.mid'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats')]
@@ -72,6 +78,8 @@ DETECTION_FILES = [pj(DETECTIONS_PATH, 'dummy.chords.txt'),
                    pj(DETECTIONS_PATH, 'sample.dbn_downbeat_tracker.txt'),
                    pj(DETECTIONS_PATH, 'sample.dc_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'sample.gmm_pattern_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.key_recognition.txt'),
+                   pj(DETECTIONS_PATH, 'sample2.key_recognition.txt'),
                    pj(DETECTIONS_PATH, 'sample.log_filt_spec_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.mm_beat_tracker.txt'),
                    pj(DETECTIONS_PATH, 'sample.onset_detector.txt'),
@@ -130,9 +138,11 @@ class TestSearchPathFunction(unittest.TestCase):
         result = search_path(DATA_PATH, 1)
         all_files = (FILE_LIST + AUDIO_FILES + ANNOTATION_FILES +
                      DETECTION_FILES + ACTIVATION_FILES)
-        print(len(result))
-        print(len(sorted(all_files)))
         self.assertEqual(result, sorted(all_files))
+
+    def test_errors(self):
+        with self.assertRaises(IOError):
+            search_path(pj(DATA_PATH, 'README'))
 
 
 class TestSearchFilesFunction(unittest.TestCase):
@@ -154,8 +164,6 @@ class TestSearchFilesFunction(unittest.TestCase):
     def test_path(self):
         # no suffix
         result = search_files(DATA_PATH)
-        print("result", result)
-        print("FILELIST", sorted(FILE_LIST))
         self.assertEqual(result, sorted(FILE_LIST))
         # single suffix
         result = search_files(DATA_PATH, suffix='txt')
@@ -232,57 +240,6 @@ class TestMatchFileFunction(unittest.TestCase):
         self.assertEqual(result, match_list)
 
 
-class TestLoadEventsFunction(unittest.TestCase):
-
-    def test_read_events_from_file(self):
-        events = load_events(pj(DATA_PATH, 'events.txt'))
-        self.assertIsInstance(events, np.ndarray)
-
-    def test_read_events_from_file_handle(self):
-        file_handle = open(pj(DATA_PATH, 'events.txt'))
-        events = load_events(file_handle)
-        self.assertIsInstance(events, np.ndarray)
-        file_handle.close()
-
-    def test_read_onset_annotations(self):
-        events = load_events(pj(ANNOTATIONS_PATH, 'sample.onsets'))
-        self.assertTrue(np.allclose(events, ONSET_ANNOTATIONS))
-
-    def test_read_file_without_comments(self):
-        events = load_events(pj(DETECTIONS_PATH, 'sample.super_flux.txt'))
-        self.assertTrue(np.allclose(events, [0.01, 0.085, 0.275, 0.445, 0.61,
-                                             0.795, 0.98, 1.115, 1.365, 1.475,
-                                             1.62, 1.795, 2.14, 2.33, 2.485,
-                                             2.665]))
-
-    def test_load_file_with_comments_and_empty_lines(self):
-        events = load_events(pj(DATA_PATH, 'commented_txt'))
-        self.assertTrue(np.allclose(events, [1.1, 2.1]))
-
-    def test_load_only_timestamps(self):
-        events = load_events(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
-        self.assertTrue(np.allclose(events, [0.147, 1.567, 2.526, 2.549, 2.563,
-                                             2.577, 3.369, 3.449]))
-
-
-class TestWriteEventsFunction(unittest.TestCase):
-
-    def test_write_events_to_file(self):
-        result = write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
-        self.assertEqual(EVENTS, result)
-
-    def test_write_events_to_file_handle(self):
-        file_handle = open(pj(DATA_PATH, 'events.txt'), 'wb')
-        result = write_events(EVENTS, file_handle)
-        self.assertEqual(EVENTS, result)
-        file_handle.close()
-
-    def test_write_and_read_events(self):
-        write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
-        annotations = load_events(pj(DATA_PATH, 'events.txt'))
-        self.assertTrue(np.allclose(annotations, EVENTS))
-
-
 class TestCombineEventsFunction(unittest.TestCase):
 
     def test_combine_mean(self):
@@ -342,20 +299,22 @@ class TestCombineEventsFunction(unittest.TestCase):
     def test_errors(self):
         with self.assertRaises(ValueError):
             combine_events(np.arange(6).reshape((2, 3)), 0.5)
+        with self.assertRaises(ValueError):
+            combine_events(EVENTS, 0.5, 'foo')
 
 
 class TestQuantizeEventsFunction(unittest.TestCase):
 
     def test_fps(self):
         # 10 FPS
-        quantized = quantize_events(EVENTS, 10, length=None)
+        quantized = quantize_events(EVENTS, 10)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         self.assertTrue(np.allclose(idx, [10, 15, 20, 25, 30]))
         # 100 FPS with numpy arrays (array must not be changed)
         events = np.array(EVENTS)
         events_ = np.copy(events)
-        quantized = quantize_events(events, 100, length=None)
+        quantized = quantize_events(events, 100)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250, 300]
@@ -371,7 +330,7 @@ class TestQuantizeEventsFunction(unittest.TestCase):
 
     def test_rounding(self):
         # without length
-        quantized = quantize_events([3.95], 10, length=None)
+        quantized = quantize_events([3.95], 10)
         idx = np.nonzero(quantized)[0]
         self.assertTrue(np.allclose(idx, [40]))
         # with length
@@ -514,6 +473,9 @@ class TestSegmentAxisFunction(unittest.TestCase):
         # testing 0 hop_size
         with self.assertRaises(ValueError):
             segment_axis(np.arange(10), 4, 0)
+        with self.assertRaises(ValueError):
+            # not enough data points for frame length
+            segment_axis(np.arange(3), 4, 2)
 
     def test_values(self):
         result = segment_axis(np.arange(10), 4, 2)
@@ -537,3 +499,7 @@ class TestSegmentAxisFunction(unittest.TestCase):
         result = segment_axis(np.arange(11), 4, 3, axis=0)
         self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
                                              [6, 7, 8, 9]]))
+        result = segment_axis(np.arange(3), 4, 2, end='wrap')
+        self.assertTrue(np.allclose(result, [[0, 1, 2, 0]]))
+        result = segment_axis(np.arange(3), 4, 2, end='pad', end_value=9)
+        self.assertTrue(np.allclose(result, [[0, 1, 2, 9]]))

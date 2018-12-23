@@ -22,7 +22,8 @@ except ImportError:
 import numpy as np
 
 from madmom.features import Activations
-from madmom.features.chords import load_chords
+from madmom.evaluation.key import load_key
+from madmom.io import load_chords, midi
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH, DETECTIONS_PATH
 
@@ -548,6 +549,51 @@ class TestDCChordRecognition(unittest.TestCase):
             self._check_results(load_chords(tmp_result), true_res)
 
 
+class TestKeyRecognitionProgram(unittest.TestCase):
+    def setUp(self):
+        self.bin = pj(program_path, 'KeyRecognition')
+        self.activations = [
+            Activations(pj(ACTIVATIONS_PATH, af))
+            for af in ['sample.key_cnn.npz', 'sample2.key_cnn.npz']
+        ]
+        self.results = [
+            load_key(pj(DETECTIONS_PATH, df))
+            for df in ['sample.key_recognition.txt',
+                       'sample2.key_recognition.txt']
+        ]
+
+    def test_help(self):
+        self.assertTrue(run_help(self.bin))
+
+    def test_binary(self):
+        for sf, true_act, true_res in zip([sample_file, sample2_file],
+                                          self.activations, self.results):
+            # save activations as binary file
+            run_save(self.bin, sf, tmp_act)
+            act = Activations(tmp_act)
+            self.assertTrue(np.allclose(act, true_act, atol=1e-5))
+            self.assertEqual(act.fps, true_act.fps)
+            # reload from file
+            run_load(self.bin, tmp_act, tmp_result)
+            self.assertEqual(load_key(tmp_result), true_res)
+
+    def test_txt(self):
+        for sf, true_act, true_res in zip([sample_file, sample2_file],
+                                          self.activations, self.results):
+            # save activations as txt file
+            run_save(self.bin, sf, tmp_act, args=['--sep', ' '])
+            act = Activations(tmp_act, sep=' ', fps=0)
+            self.assertTrue(np.allclose(act, true_act, atol=1e-5))
+            # reload from file
+            run_load(self.bin, tmp_act, tmp_result, args=['--sep', ' '])
+            self.assertEqual(load_key(tmp_result), true_res)
+
+    def test_run(self):
+        for sf, true_res in zip([sample_file, sample2_file], self.results):
+            run_single(self.bin, sf, tmp_result)
+            self.assertEqual(load_key(tmp_result), true_res)
+
+
 class TestGMMPatternTrackerProgram(unittest.TestCase):
     def setUp(self):
         self.bin = pj(program_path, "GMMPatternTracker")
@@ -796,6 +842,17 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
+    def test_midi(self):
+        run_single(self.bin, stereo_sample_file, tmp_result, args=['--midi'])
+        result = midi.MIDIFile(tmp_result).notes
+        self.assertTrue(np.allclose(result[:, :2], self.result, atol=1e-3))
+
+    def test_mirex(self):
+        run_single(self.bin, stereo_sample_file, tmp_result, args=['--mirex'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result[:, 0], self.result[:, 0]))
+        self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 622.3]))
+
 
 class TestSpectralOnsetDetectionProgram(unittest.TestCase):
     def setUp(self):
@@ -956,8 +1013,20 @@ class TestTempoDetectorProgram(unittest.TestCase):
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.online_results))
 
+    def test_mirex(self):
+        run_single(self.bin, sample_file, tmp_result, args=['--mirex'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, [117.65, 176.47, 0.27]))
+
+    def test_all_tempi(self):
+        run_single(self.bin, sample_file, tmp_result, args=['--all'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(
+            result, [[176.47, 0.475], [117.65, 0.177], [240.00, 0.154],
+                     [68.97, 0.099], [82.19, 0.096]]))
+
 
 # clean up
-def teardown():
+def teardown_module():
     os.unlink(tmp_act)
     os.unlink(tmp_result)

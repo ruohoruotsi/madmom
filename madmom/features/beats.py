@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 
-from ..audio.signal import smooth as smooth_signal
+from ..audio.signal import signal_frame, smooth as smooth_signal
 from ..ml.nn import average_predictions
 from ..processors import (OnlineProcessor, ParallelProcessor, Processor,
                           SequentialProcessor)
@@ -52,8 +52,7 @@ class RNNBeatProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.beats.RNNBeatProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
-    array([ 0.00479,  0.00603,  0.00927,  0.01419,  0.02342, ...,
-            0.00411,  0.00517,  0.00757,  0.01289,  0.02725], dtype=float32)
+    array([0.00479, 0.00603, 0.00927, 0.01419, ... 0.02725], dtype=float32)
 
     For online processing, `online` must be set to 'True'. If processing power
     is limited, fewer number of RNN models can be defined via `nn_files`. The
@@ -64,8 +63,7 @@ class RNNBeatProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.beats.RNNBeatProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
-    array([ 0.03887,  0.02619,  0.00747,  0.00218,  0.00178,  ...,
-            0.00254,  0.00463,  0.00947,  0.02192,  0.04825], dtype=float32)
+    array([0.03887, 0.02619, 0.00747, 0.00218, ... 0.04825], dtype=float32)
 
     """
 
@@ -157,11 +155,11 @@ class MultiModelSelectionProcessor(Processor):
 
     >>> predictions = proc('tests/data/audio/sample.wav')
     >>> predictions  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    [array([ 0.00535,  0.00774,  ...,  0.02343,  0.04931], dtype=float32),
-     array([ 0.0022 ,  0.00282,  ...,  0.00825,  0.0152 ], dtype=float32),
+    [array([0.00535, 0.00774, ..., 0.02343, 0.04931], dtype=float32),
+     array([0.0022 , 0.00282, ..., 0.00825, 0.0152 ], dtype=float32),
      ...,
-     array([ 0.005  ,  0.0052 ,  ...,  0.00472,  0.01524], dtype=float32),
-     array([ 0.00319,  0.0044 ,  ...,  0.0081 ,  0.01498], dtype=float32)]
+     array([0.005  , 0.0052 , ..., 0.00472, 0.01524], dtype=float32),
+     array([0.00319, 0.0044 , ..., 0.0081 , 0.01498], dtype=float32)]
 
     We can feed these predictions to the MultiModelSelectionProcessor.
     Since we do not have a dedicated reference prediction (which had to be the
@@ -171,7 +169,7 @@ class MultiModelSelectionProcessor(Processor):
 
     >>> mm_proc = MultiModelSelectionProcessor(num_ref_predictions=None)
     >>> mm_proc(predictions)  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    array([ 0.00759,  0.00901,  ...,  0.00843,  0.01834], dtype=float32)
+    array([0.00759, 0.00901, ..., 0.00843, 0.01834], dtype=float32)
 
     """
 
@@ -281,23 +279,13 @@ def detect_beats(activations, interval, look_aside=0.2):
 
         """
         # detect the nearest beat around the actual position
-        start = position - frames_look_aside
-        end = position + frames_look_aside
-        if start < 0:
-            # pad with zeros
-            act = np.append(np.zeros(-start), activations[0:end])
-        elif end > len(activations):
-            # append zeros accordingly
-            zeros = np.zeros(end - len(activations))
-            act = np.append(activations[start:], zeros)
-        else:
-            act = activations[start:end]
+        act = signal_frame(activations, position, frames_look_aside * 2, 1)
         # apply a filtering window to prefer beats closer to the centre
-        act_ = np.multiply(act, win)
+        act = np.multiply(act, win)
         # search max
-        if np.argmax(act_) > 0:
+        if np.argmax(act) > 0:
             # maximum found, take that position
-            position = np.argmax(act_) + start
+            position = np.argmax(act) + position - frames_look_aside
         # add the found position
         positions.append(position)
         # go to the next beat, until end is reached
@@ -386,7 +374,7 @@ class BeatTrackingProcessor(Processor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.11,  0.45,  0.79,  1.13,  1.47,  1.81,  2.15,  2.49])
+    array([0.11, 0.45, 0.79, 1.13, 1.47, 1.81, 2.15, 2.49])
 
     """
     LOOK_ASIDE = 0.2
@@ -442,17 +430,7 @@ class BeatTrackingProcessor(Processor):
             # TODO: make this _much_ faster!
             while pos < len(activations):
                 # look N frames around the actual position
-                start = pos - look_ahead_frames
-                end = pos + look_ahead_frames
-                if start < 0:
-                    # pad with zeros
-                    act = np.append(np.zeros(-start), activations[0:end])
-                elif end > len(activations):
-                    # append zeros accordingly
-                    zeros = np.zeros(end - len(activations))
-                    act = np.append(activations[start:], zeros)
-                else:
-                    act = activations[start:end]
+                act = signal_frame(activations, pos, look_ahead_frames * 2, 1)
                 # create a interval histogram
                 histogram = self.tempo_estimator.interval_histogram(act)
                 # get the dominant interval
@@ -460,7 +438,7 @@ class BeatTrackingProcessor(Processor):
                 # add the offset (i.e. the new detected start position)
                 positions = detect_beats(act, interval, self.look_aside)
                 # correct the beat positions
-                positions += start
+                positions += pos - look_ahead_frames
                 # remove all positions < already detected beats + min_interval
                 next_pos = (detections[-1] + self.tempo_estimator.min_interval
                             if detections else 0)
@@ -577,7 +555,7 @@ class BeatDetectionProcessor(BeatTrackingProcessor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.11,  0.45,  0.79,  1.13,  1.47,  1.81,  2.15,  2.49])
+    array([0.11, 0.45, 0.79, 1.13, 1.47, 1.81, 2.15, 2.49])
 
     """
     LOOK_ASIDE = 0.2
@@ -657,7 +635,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.09,  0.79,  1.49])
+    array([0.09, 0.79, 1.49])
 
     """
     INTERVAL_SIGMA = 0.18
@@ -855,7 +833,7 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.1 ,  0.45,  0.8 ,  1.12,  1.48,  1.8 ,  2.15,  2.49])
+    array([0.1 , 0.45, 0.8 , 1.12, 1.48, 1.8 , 2.15, 2.49])
 
     """
     MIN_BPM = 55.

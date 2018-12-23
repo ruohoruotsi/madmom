@@ -22,25 +22,7 @@ from .beats_hmm import (BarStateSpace, BarTransitionModel,
                         RNNDownBeatTrackingObservationModel, )
 from ..ml.hmm import HiddenMarkovModel
 from ..processors import ParallelProcessor, Processor, SequentialProcessor
-
-
-def filter_downbeats(beats):
-    """
-
-    Parameters
-    ----------
-    beats : numpy array, shape (num_beats, 2)
-        Array with beats and their position inside the bar as the second
-        column.
-
-    Returns
-    -------
-    downbeats : numpy array
-        Array with downbeat times.
-
-    """
-    # return only downbeats (timestamps)
-    return beats[beats[:, 1] == 1][:, 0]
+from ..utils import string_types
 
 
 # downbeat tracking, i.e. track beats and downbeats directly from signal
@@ -67,11 +49,11 @@ class RNNDownBeatProcessor(SequentialProcessor):
     <madmom.features.downbeats.RNNDownBeatProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')
     ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    array([[ 0.00011, 0.00037],
-           [ 0.00008, 0.00043],
+    array([[0.00011, 0.00037],
+           [0.00008, 0.00043],
            ...,
-           [ 0.00791, 0.00169],
-           [ 0.03425, 0.00494]], dtype=float32)
+           [0.00791, 0.00169],
+           [0.03425, 0.00494]], dtype=float32)
 
     """
 
@@ -199,11 +181,11 @@ class DBNDownBeatTrackingProcessor(Processor):
 
     >>> act = RNNDownBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-    array([[ 0.09, 1. ],
-           [ 0.45, 2. ],
+    array([[0.09, 1. ],
+           [0.45, 2. ],
            ...,
-           [ 2.14, 3. ],
-           [ 2.49, 4. ]])
+           [2.14, 3. ],
+           [2.49, 4. ]])
 
     """
 
@@ -533,11 +515,11 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
 
     >>> act = pre_proc('tests/data/audio/sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS
-    array([[ 0.82,  4.  ],
-           [ 1.78,  1.  ],
+    array([[0.82, 4.  ],
+           [1.78, 1.  ],
            ...,
-           [ 3.7 ,  3.  ],
-           [ 4.66,  4.  ]])
+           [3.7 , 3.  ],
+           [4.66, 4.  ]])
     """
     MIN_BPM = (55, 60)
     MAX_BPM = (205, 225)
@@ -762,7 +744,7 @@ class LoadBeatsProcessor(Processor):
 
         """
         # pylint: disable=unused-argument
-        from ..utils import load_events
+        from ..io import load_events
         return load_events(self.beats)
 
     def process_batch(self, filename):
@@ -791,7 +773,7 @@ class LoadBeatsProcessor(Processor):
         import os
         from ..utils import match_file
 
-        if not isinstance(filename, str):
+        if not isinstance(filename, string_types):
             raise SystemExit('Please supply a filename, not %s.' % filename)
         # select the matching beat file to a given input file from all files
         basename, ext = os.path.splitext(os.path.basename(filename))
@@ -946,7 +928,7 @@ class RNNBarProcessor(Processor):
     ----------
     .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
            "Downbeat Tracking Using Beat-Synchronous Features and Recurrent
-            Networks",
+           Networks",
            Proceedings of the 17th International Society for Music Information
            Retrieval Conference (ISMIR), 2016.
 
@@ -960,16 +942,17 @@ class RNNBarProcessor(Processor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.downbeats.RNNBarProcessor object at 0x...>
     >>> beats = np.loadtxt('tests/data/detections/sample.dbn_beat_tracker.txt')
-    >>> proc(('tests/data/audio/sample.wav', beats))
-    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    array([[ 0.1  , 0.37781],
-           [ 0.45 , 0.18954],
-           [ 0.8  , 0.11194],
-           [ 1.12 , 0.32767],
-           [ 1.48 , 0.27009],
-           [ 1.8  , 0.18147],
-           [ 2.15 , 0.16247],
-           [ 2.49 ,     nan]])
+    >>> downbeat_prob = proc(('tests/data/audio/sample.wav', beats))
+    >>> np.around(downbeat_prob, decimals=3)
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_ARRAYS
+    array([[0.1  , 0.378],
+           [0.45 , 0.19 ],
+           [0.8  , 0.112],
+           [1.12 , 0.328],
+           [1.48 , 0.27 ],
+           [1.8  , 0.181],
+           [2.15 , 0.162],
+           [2.49 ,   nan]])
 
     """
 
@@ -1088,14 +1071,14 @@ class DBNBarTrackingProcessor(Processor):
     >>> beats = np.loadtxt('tests/data/detections/sample.dbn_beat_tracker.txt')
     >>> act = RNNBarProcessor()(('tests/data/audio/sample.wav', beats))
     >>> proc(act)  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-    array([[ 0.1 , 1. ],
-           [ 0.45, 2. ],
-           [ 0.8 , 3. ],
-           [ 1.12, 1. ],
-           [ 1.48, 2. ],
-           [ 1.8 , 3. ],
-           [ 2.15, 1. ],
-           [ 2.49, 2. ]])
+    array([[0.1 , 1. ],
+           [0.45, 2. ],
+           [0.8 , 3. ],
+           [1.12, 1. ],
+           [1.48, 2. ],
+           [1.8 , 3. ],
+           [2.15, 1. ],
+           [2.49, 2. ]])
 
     """
 
@@ -1106,7 +1089,9 @@ class DBNBarTrackingProcessor(Processor):
                  observation_weight=OBSERVATION_WEIGHT,
                  meter_change_prob=METER_CHANGE_PROB, **kwargs):
         # pylint: disable=unused-argument
-        # save variables
+        from madmom.utils import integer_types
+        if isinstance(beats_per_bar, integer_types):
+            beats_per_bar = (beats_per_bar, )
         self.beats_per_bar = beats_per_bar
         # state space & transition model for each bar length
         state_spaces = []

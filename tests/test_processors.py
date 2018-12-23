@@ -41,10 +41,12 @@ class TestBufferProcessor(unittest.TestCase):
         # shift in three new values
         result = buffer(np.arange(6, 9))
         self.assertTrue(np.allclose(result, [4, 5, 6, 7, 8]))
+        # shift in six new values (bigger than buffer)
+        result = buffer(np.arange(9, 15))
+        self.assertTrue(np.allclose(result, [10, 11, 12, 13, 14]))
 
     def test_2d(self):
         buffer = BufferProcessor((5, 2), init=np.zeros((5, 2)))
-        print(buffer.data)
         self.assertTrue(buffer.data.shape == (5, 2))
         self.assertTrue(np.allclose(buffer.data, 0))
         # shift in new values
@@ -69,6 +71,10 @@ class TestBufferProcessor(unittest.TestCase):
         result = buffer(np.arange(8, 14).reshape((3, -1)))
         self.assertTrue(result.shape == (5, 2))
         self.assertTrue(np.allclose(result.ravel(), np.arange(4, 14)))
+        # shift in six new values (bigger than buffer)
+        result = buffer(np.arange(14, 26).reshape((6, -1)))
+        self.assertTrue(result.shape == (5, 2))
+        self.assertTrue(np.allclose(result.ravel(), np.arange(16, 26)))
 
     def test_reset(self):
         buffer = BufferProcessor(5, init=np.ones(5))
@@ -80,6 +86,6 @@ class TestBufferProcessor(unittest.TestCase):
 
 
 # clean up
-def teardown():
+def teardown_module():
     import os
     os.unlink(tmp_file)

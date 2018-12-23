@@ -36,81 +36,6 @@ def spec(stft):
     return np.abs(stft)
 
 
-# some functions working on magnitude spectra
-def adaptive_whitening(spec, floor=0.5, relaxation=10):
-    """
-    Return an adaptively whitened version of the magnitude spectrogram.
-
-    Parameters
-    ----------
-    spec : numpy array
-        Magnitude spectrogram.
-    floor : float, optional
-        Floor coefficient.
-    relaxation : int, optional
-        Relaxation time [frames].
-
-    Returns
-    -------
-    whitened_spec : numpy array
-        The whitened magnitude spectrogram.
-
-    References
-    ----------
-
-    .. [1] Dan Stowell and Mark Plumbley,
-           "Adaptive Whitening For Improved Real-time Audio Onset Detection",
-           Proceedings of the International Computer Music Conference (ICMC),
-           2007
-
-    """
-    raise NotImplementedError("check if adaptive_whitening returns meaningful "
-                              "results")
-    relaxation = 10.0 ** (-6. * relaxation)
-    p = np.zeros_like(spec)
-    # iterate over all frames
-    for f, frame in enumerate(spec):
-        if f > 0:
-            p[f] = np.maximum(frame, floor, relaxation * p[f - 1])
-        else:
-            p[f] = np.maximum(frame, floor)
-    # return the whitened spectrogram
-    return spec / p
-
-
-def statistical_spectrum_descriptors(spectrogram):
-    """
-    Statistical Spectrum Descriptors of the STFT.
-
-    Parameters
-    ----------
-    spectrogram : numpy array
-        Magnitude spectrogram.
-
-    Returns
-    -------
-    statistical_spectrum_descriptors : dict
-        Statistical spectrum descriptors of the spectrogram.
-
-    References
-    ----------
-    .. [1] Thomas Lidy and Andreas Rauber,
-           "Evaluation of Feature Extractors and Psycho-acoustic
-           Transformations for Music Genre Classification",
-           Proceedings of the 6th International Conference on Music Information
-           Retrieval (ISMIR), 2005.
-
-    """
-    from scipy.stats import skew, kurtosis
-    return {'mean': np.mean(spectrogram, axis=0),
-            'median': np.median(spectrogram, axis=0),
-            'variance': np.var(spectrogram, axis=0),
-            'skewness': skew(spectrogram, axis=0),
-            'kurtosis': kurtosis(spectrogram, axis=0),
-            'min': np.min(spectrogram, axis=0),
-            'max': np.max(spectrogram, axis=0)}
-
-
 def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
     """
     Determines the tuning frequency of the audio signal based on the given
@@ -381,11 +306,11 @@ class FilteredSpectrogram(Spectrogram):
 
     >>> spec = FilteredSpectrogram('tests/data/audio/sample.wav')
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    FilteredSpectrogram([[  5.66156, 6.30141, ..., 0.05426, 0.06461],
-                         [  8.44266, 8.69582, ..., 0.07703, 0.0902 ],
+    FilteredSpectrogram([[ 5.66156, 6.30141, ..., 0.05426, 0.06461],
+                         [ 8.44266, 8.69582, ..., 0.07703, 0.0902 ],
                          ...,
-                         [ 10.04626, 1.12018, ..., 0.0487 , 0.04282],
-                         [  8.60186, 6.81195, ..., 0.03721, 0.03371]],
+                         [10.04626, 1.12018, ..., 0.0487 , 0.04282],
+                         [ 8.60186, 6.81195, ..., 0.03721, 0.03371]],
                         dtype=float32)
 
     The resulting spectrogram has fewer frequency bins, with the centers of
@@ -405,11 +330,11 @@ class FilteredSpectrogram(Spectrogram):
     The filterbank used to filter the spectrogram is saved as an attribute:
 
     >>> spec.filterbank  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    LogarithmicFilterbank([[ 0., 0., ..., 0., 0.],
-                           [ 0., 0., ..., 0., 0.],
+    LogarithmicFilterbank([[0., 0., ..., 0., 0.],
+                           [0., 0., ..., 0., 0.],
                            ...,
-                           [ 0., 0., ..., 0., 0.],
-                           [ 0., 0., ..., 0., 0.]], dtype=float32)
+                           [0., 0., ..., 0., 0.],
+                           [0., 0., ..., 0., 0.]], dtype=float32)
     >>> spec.filterbank.num_bands
     81
 
@@ -579,7 +504,7 @@ class LogarithmicSpectrogram(Spectrogram):
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     LogarithmicSpectrogram([[...]], dtype=float32)
     >>> spec.min()
-    LogarithmicSpectrogram(1.604927092557773e-06, dtype=float32)
+    LogarithmicSpectrogram(0., dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
@@ -724,12 +649,12 @@ class LogarithmicSpectrogramProcessor(Processor):
         if mul is not None:
             g.add_argument('--mul', action='store', type=float,
                            default=mul, help='multiplier (before taking '
-                           'the log) [default=%(default)i]')
+                           'the log) [default=%(default).1f]')
         # add
         if add is not None:
             g.add_argument('--add', action='store', type=float,
                            default=add, help='value added (before taking '
-                           'the log) [default=%(default)i]')
+                           'the log) [default=%(default).1f]')
         # return the group
         return g
 
@@ -769,21 +694,18 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
 
     >>> spec = LogarithmicFilteredSpectrogram('tests/data/audio/sample.wav')
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    LogarithmicFilteredSpectrogram([[ 0.82358, 0.86341, ...,
-                                      0.02295, 0.02719],
-                                    [ 0.97509, 0.98658, ...,
-                                      0.03223, 0.0375 ],
+    LogarithmicFilteredSpectrogram([[0.82358, 0.86341, ..., 0.02295, 0.02719],
+                                    [0.97509, 0.98658, ..., 0.03223, 0.0375 ],
                                     ...,
-                                    [ 1.04322, 0.32637, ...,
-                                      0.02065, 0.01821],
-                                    [ 0.98236, 0.89276, ...,
-                                      0.01587, 0.0144 ]], dtype=float32)
+                                    [1.04322, 0.32637, ..., 0.02065, 0.01821],
+                                    [0.98236, 0.89276, ..., 0.01587, 0.0144 ]],
+                                    dtype=float32)
     >>> spec.shape
     (281, 81)
     >>> spec.filterbank  # doctest: +ELLIPSIS
     LogarithmicFilterbank([[...]], dtype=float32)
     >>> spec.min()  # doctest: +ELLIPSIS
-    LogarithmicFilteredSpectrogram(0.00830..., dtype=float32)
+    LogarithmicFilteredSpectrogram(0.00831, dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
@@ -1002,15 +924,12 @@ class SpectrogramDifference(Spectrogram):
     >>> spec = LogarithmicFilteredSpectrogram('tests/data/audio/sample.wav', \
                                               num_bands=24, fps=200)
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    LogarithmicFilteredSpectrogram([[ 0.82358, 0.86341, ...,
-                                      0.02809, 0.02672],
-                                    [ 0.92514, 0.93211, ...,
-                                      0.03607, 0.0317 ],
+    LogarithmicFilteredSpectrogram([[0.82358, 0.86341, ..., 0.02809, 0.02672],
+                                    [0.92514, 0.93211, ..., 0.03607, 0.0317 ],
                                     ...,
-                                    [ 1.03826, 0.767  , ...,
-                                      0.01814, 0.01138],
-                                    [ 0.98236, 0.89276, ...,
-                                      0.01669, 0.00919]], dtype=float32)
+                                    [1.03826, 0.767  , ..., 0.01814, 0.01138],
+                                    [0.98236, 0.89276, ..., 0.01669, 0.00919]],
+                                    dtype=float32)
     >>> spec.shape
     (561, 140)
 
@@ -1020,11 +939,11 @@ class SpectrogramDifference(Spectrogram):
     >>> superflux = SpectrogramDifference(spec, diff_max_bins=3, \
                                           positive_diffs=True)
     >>> superflux  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    SpectrogramDifference([[ 0.     , 0. , ...,  0. ,  0. ],
-                           [ 0.     , 0. , ...,  0. ,  0. ],
+    SpectrogramDifference([[0.     , 0. , ...,  0. ,  0. ],
+                           [0.     , 0. , ...,  0. ,  0. ],
                            ...,
-                           [ 0.01941, 0. , ...,  0. ,  0. ],
-                           [ 0.     , 0. , ...,  0. ,  0. ]], dtype=float32)
+                           [0.01941, 0. , ...,  0. ,  0. ],
+                           [0.     , 0. , ...,  0. ,  0. ]], dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
@@ -1056,7 +975,7 @@ class SpectrogramDifference(Spectrogram):
         if diff_max_bins is not None and diff_max_bins > 1:
             from scipy.ndimage.filters import maximum_filter
             # widen the spectrogram in frequency dimension
-            size = [1, int(diff_max_bins)]
+            size = (1, int(diff_max_bins))
             diff_spec = maximum_filter(spectrogram, size=size)
         else:
             diff_spec = spectrogram
@@ -1199,9 +1118,9 @@ class SpectrogramDifferenceProcessor(Processor):
                 hop_size=data.stft.frames.hop_size, window=data.stft.window)
         # init buffer or shift it
         if self._buffer is None or reset:
-            # put diff_frames NaNs before the data (will be replaced by 0s)
+            # put diff_frames infs before the data (will be replaced by 0s)
             init = np.empty((self.diff_frames, data.shape[1]))
-            init[:] = np.nan
+            init[:] = np.inf
             data = np.insert(data, 0, init, axis=0)
             # use the data for the buffer
             self._buffer = BufferProcessor(init=data)
@@ -1210,16 +1129,14 @@ class SpectrogramDifferenceProcessor(Processor):
             data = self._buffer(data)
         # compute difference based on this data (reduce 1st dimension)
         diff = SpectrogramDifference(data, keep_dims=False, **args)
-        # set all NaN-diffs to 0
-        diff[np.isnan(diff)] = 0
+        # set all inf-diffs to 0
+        diff[np.isinf(diff)] = 0
         # stack the diff and the data if needed
         if self.stack_diffs is None:
             return diff
-        else:
-            # Note: don't use `data` directly, because it could be a str
-            #       we ave to access diff.spectrogram (i.e. converted data)
-            return self.stack_diffs((diff.spectrogram[self.diff_frames:],
-                                     diff))
+        # Note: don't use `data` directly, because it could be a str
+        #       we ave to access diff.spectrogram (i.e. converted data)
+        return self.stack_diffs((diff.spectrogram[self.diff_frames:], diff))
 
     def reset(self):
         """Reset the SpectrogramDifferenceProcessor."""
@@ -1514,7 +1431,7 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
     def __new__(cls, signal, fps=50., fmin=27.5, fmax=4200.):
         from scipy.signal import filtfilt
         from .filters import SemitoneBandpassFilterbank
-        from .signal import FramedSignal, Signal, energy, resample
+        from .signal import FramedSignal, Signal, resample
         # check if we got a mono Signal
         if not isinstance(signal, Signal) or signal.num_channels != 1:
             signal = Signal(signal, num_channels=1)
